@@ -1,0 +1,2 @@
+trial_type,trial_index,time_elapsed,internal_node_id,subject_id,success,timeout,failed_images,failed_audio,failed_video,rt,response,ID,view_history,stimulus,stim_dur,Block,trial_type_feed,Point_amount,slider_start,Estimated_points,Speed,Speed_min,Speed_sd,question_order,Correct,True_Perc,FinalQ_1,FinalQ_2,FinalQ_3,FinalQ_4
+introduction,2,14394,0.0-2.0,j5rc2gp6,,,,,,6677.0,6720acc5ff94d8b0b7e6b895,6720acc5ff94d8b0b7e6b895,,,,,,,,,,,,,,,,,,
