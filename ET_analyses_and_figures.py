@@ -47,9 +47,10 @@ warnings.filterwarnings("ignore", category=RuntimeWarning)
 # =============================================================================
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+#Update pathways, if relevant
 DATA_DIR = PROJECT_ROOT / "data"
-RAW_DATA_PATH = DATA_DIR / "data_May_DC8.csv"
-QUESTIONNAIRE_PATH = DATA_DIR / "ET_Screening_August15.csv"
+RAW_DATA_PATH = DATA_DIR / "behavioral"
+QUESTIONNAIRE_PATH = DATA_DIR / "self-report" / "questionnaires.csv"
 DEMOGRAPHICS_PATH = DATA_DIR / "demographics.csv"
 
 OUTPUT_DIR = PROJECT_ROOT / "analysis_outputs"
@@ -195,8 +196,7 @@ def collapse_questionnaires(df: pd.DataFrame, id_col: str = "ID") -> pd.DataFram
 
     Qualtrics exports can contain repeated rows for the same participant. For
     publication analyses, a later completed row is preferable to an earlier
-    partial/duplicate row. This avoids mixing item values across rows and fixes
-    participants whose group assignment differs across duplicate submissions.
+    partial/duplicate row.
     """
     q = df.copy()
     q[id_col] = q[id_col].astype(str).str.strip()
@@ -273,7 +273,13 @@ def report_dataframe_level(df: pd.DataFrame, name: str, id_col: str = "ID") -> N
 # =============================================================================
 
 def load_raw_data(path: Path = RAW_DATA_PATH) -> pd.DataFrame:
-    raw = pd.read_csv(path)
+
+    csv_files = path.glob("*.csv")
+
+    raw = pd.concat(
+        (pd.read_csv(file) for file in csv_files),
+        ignore_index=True
+    )
     # Fixed: use pd.isna rather than `x in [np.nan]`, which never behaves reliably.
     block = raw["Block"].copy()
     for i in range(1, len(block) - 1):
@@ -421,7 +427,6 @@ def build_clean_task_data(raw_data: pd.DataFrame) -> pd.DataFrame:
             perf_feedback.append(val)
         else:
             perf_feedback.append(np.nan)
-    clean_data["Performance_feedback"] = perf_feedback
 
     clean_data["trial_PE"] = (clean_data["estimated_points"] - clean_data["point_amount"]).abs()
     clean_data["trialtype"] = clean_data["Eff_Rating"].notna().astype(int)
@@ -1233,7 +1238,7 @@ def figure_aligned_group_efficacy_trajectories(
     fig, ax = plt.subplots(figsize=(7.3, 5.0), constrained_layout=True)
     beautify_axes(ax)
     ax.set_xlim(1, 32)
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0.1, 0.9)
     ax.grid(True, color="#eeeeee", linewidth=0.8)
 
     for group in GROUP_ORDER:
@@ -1277,20 +1282,35 @@ def figure_aligned_group_efficacy_trajectories(
         "so all trajectories are averaged on the same Low -> High ground-truth axis.\n"
         "Shaded bands show +/-1.96 SE around each group mean."
     )
-    ax.text(0.03, 0.93, note, transform=ax.transAxes, va="top", ha="left", fontsize=8.5)
+    ax.text(
+        0.03,
+        0.93,
+        note,
+        transform=ax.transAxes,
+        va="top",
+        ha="left",
+        fontsize=8.5,
+        bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.75, "pad": 2},
+    )
     ax.set_title("Reported efficacy trajectories aligned to low -> high ground truth", fontweight="bold")
     ax.set_xlabel("Aligned efficacy-rating trial")
     ax.set_ylabel("Reported Efficacy")
 
-    handles, labels = ax.get_legend_handles_labels()
-    order = [1, 2, 3, 0] if len(handles) == 4 else range(len(handles))
+    legend_handles = [
+        Line2D([0], [0], color=GROUP_COLORS.get(group, "tab:gray"), linewidth=3.2)
+        for group in GROUP_ORDER
+    ]
+    legend_labels = [f"{group} group average (n={int(counts.loc[group])})" for group in GROUP_ORDER]
+    legend_handles.append(Line2D([0], [0], color="black", linewidth=2.8, linestyle="--"))
+    legend_labels.append("Ground truth")
     ax.legend(
-        [handles[i] for i in order],
-        [labels[i] for i in order],
+        legend_handles,
+        legend_labels,
         loc="upper center",
         bbox_to_anchor=(0.5, -0.14),
         ncol=2,
         frameon=False,
+        handlelength=3.2,
     )
     fig.suptitle("High -> low participants are included after reversing trial order", fontstyle="italic", y=1.02)
 
@@ -1740,6 +1760,7 @@ def figure6_task_schematic(save=True):
 # SIMULATIONS / FIGURE 7 / SUPPLEMENTAL FIGURE 2
 # =============================================================================
 
+#These hard-coded values correspond to the task ground truth values. See ReadMe for more information.
 def datageneration():
     """Restored/fixed data-generation function used for model-behavior checks."""
     percent = [
